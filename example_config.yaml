@@ -12,8 +12,8 @@ monitoring:
   websites:
     - https://www.google.com
     - https://www.github.com
-  # (Required) The path to the CSV file where logs will be stored.
-  log_file: /var/log/proxy_monitor.log
+  # (Required) The path to the Excel file where logs will be stored.
+  log_file: /var/log/proxy_monitor.xlsx
 
 email_alerts:
   # (Optional) Settings for email notifications.
