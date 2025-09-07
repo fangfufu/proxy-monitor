@@ -1,6 +1,5 @@
 import requests
 import time
-import csv
 import smtplib
 import argparse
 import yaml  # Using PyYAML for config parsing
@@ -8,6 +7,7 @@ import os
 import socket
 from email.mime.text import MIMEText
 from datetime import datetime
+import pandas as pd
 
 def check_proxy_speed(url, proxy):
     """
@@ -30,21 +30,45 @@ def check_proxy_speed(url, proxy):
         print(f"Error connecting to {url} via proxy: {e}")
         return None
 
-def log_to_csv(log_file, url, download_time, status):
+def sanitize_sheet_name(url):
+    """Sanitizes a URL to be a valid Excel sheet name."""
+    name = url.replace("https://", "").replace("http://", "").replace("www.", "")
+    invalid_chars = r'[]/\?*:'
+    for char in invalid_chars:
+        name = name.replace(char, '_')
+    return name[:31]
+
+def log_to_excel(log_file, url, download_time, status):
     """
-    Logs the monitoring result to a CSV file.
+    Logs the monitoring result to an Excel file, with one sheet per website.
 
     Args:
-        log_file (str): The path to the CSV log file.
+        log_file (str): The path to the Excel log file.
         url (str): The URL that was checked.
         download_time (float): The download time in seconds. Can be 0 if status is 'DOWN'.
         status (str): 'UP' or 'DOWN'.
     """
+    sheet_name = sanitize_sheet_name(url)
+    df_new_row = pd.DataFrame([[datetime.now().isoformat(), url, f"{download_time:.4f}", status]],
+                              columns=['Timestamp', 'URL', 'Download Time (s)', 'Status'])
+
     try:
-        with open(log_file, 'a', newline='') as csvfile:
-            log_writer = csv.writer(csvfile)
-            log_writer.writerow([datetime.now().isoformat(), url, f"{download_time:.4f}", status])
-    except IOError as e:
+        if os.path.exists(log_file):
+            with pd.ExcelFile(log_file) as xls:
+                sheets = {sheet: xls.parse(sheet) for sheet in xls.sheet_names}
+        else:
+            sheets = {}
+
+        if sheet_name in sheets:
+            sheets[sheet_name] = pd.concat([sheets[sheet_name], df_new_row], ignore_index=True)
+        else:
+            sheets[sheet_name] = df_new_row
+
+        with pd.ExcelWriter(log_file, engine='openpyxl') as writer:
+            for sheet, df in sheets.items():
+                df.to_excel(writer, sheet_name=sheet, index=False)
+
+    except Exception as e:
         print(f"Error writing to log file {log_file}: {e}")
 
 
@@ -122,7 +146,7 @@ def main():
     parser.add_argument('--proxy-host', dest='host', help="Proxy server host or IP address.")
     parser.add_argument('--proxy-port', dest='port', type=int, help="Proxy server port.")
     parser.add_argument('--websites', nargs='+', help="List of websites to check.")
-    parser.add_argument('--log-file', help="Path to the CSV log file.")
+    parser.add_argument('--log-file', help="Path to the Excel log file.")
     
     email_group = parser.add_argument_group('Email Alert Options')
     email_group.add_argument('--alert-email', dest='recipient_email', help="Email address to send alerts to.")
@@ -149,10 +173,10 @@ def main():
 
         if download_time is not None:
             print(f"Successfully connected to {website}. Download time: {download_time:.4f} seconds.")
-            log_to_csv(args.log_file, website, download_time, 'UP')
+            log_to_excel(args.log_file, website, download_time, 'UP')
         else:
             print(f"Failed to connect to {website} through the proxy.")
-            log_to_csv(args.log_file, website, 0, 'DOWN')
+            log_to_excel(args.log_file, website, 0, 'DOWN')
             subject = "Proxy Server Down Alert!"
             body = f"The proxy server at {args.host}:{args.port} seems to be down.\n" \
                    f"Failed to connect to {website} at {datetime.now().isoformat()}.\n" \
