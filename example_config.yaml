@@ -1,0 +1,29 @@
+# Example Configuration for Proxy Speed Monitor
+# Rename this file to config.yaml and fill in your details.
+
+proxy:
+  # (Required) The hostname or IP address of your proxy server.
+  host: 192.168.1.100
+  # (Required) The port number of your proxy server.
+  port: 8080
+
+monitoring:
+  # (Required) A list of websites to use for monitoring.
+  websites:
+    - https://www.google.com
+    - https://www.github.com
+  # (Required) The path to the CSV file where logs will be stored.
+  log_file: /var/log/proxy_monitor.log
+
+email_alerts:
+  # (Optional) Settings for email notifications.
+  # Set use_local_mta to true if you have a configured MTA like sendmail or postfix on your Linux system.
+  # If true, the other smtp_* settings below will be ignored.
+  use_local_mta: false
+  recipient_email: your_email@example.com
+
+  # These settings are only needed if use_local_mta is false.
+  smtp_server: smtp.example.com
+  smtp_port: 587
+  smtp_user: your_email@example.com
+  smtp_password: your_password
