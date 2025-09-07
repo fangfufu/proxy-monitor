@@ -49,8 +49,10 @@ def log_to_excel(log_file, url, download_time, status):
         status (str): 'UP' or 'DOWN'.
     """
     sheet_name = sanitize_sheet_name(url)
-    df_new_row = pd.DataFrame([[datetime.now().isoformat(), url, f"{download_time:.4f}", status]],
+    df_new_row = pd.DataFrame([[datetime.now(), url, f"{download_time:.4f}", status]],
                               columns=['Timestamp', 'URL', 'Download Time (s)', 'Status'])
+
+    df_new_row['Timestamp'] = pd.to_datetime(df_new_row['Timestamp'])
 
     try:
         if os.path.exists(log_file):
@@ -179,7 +181,7 @@ def main():
             log_to_excel(args.log_file, website, 0, 'DOWN')
             subject = "Proxy Server Down Alert!"
             body = f"The proxy server at {args.host}:{args.port} seems to be down.\n" \
-                   f"Failed to connect to {website} at {datetime.now().isoformat()}.\n" \
+                   f"Failed to connect to {website} at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}.\n" \
                    f"Please check the proxy server status."
             send_email_alert(args, subject, body)
 
