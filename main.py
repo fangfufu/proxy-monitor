@@ -187,6 +187,7 @@ def main():
         "https": proxy_url,
     }
 
+    failed_websites = []
     for website in args.websites:
         print(f"Checking {website} through proxy {args.host}...")
         download_time = check_proxy_speed(website, proxies)
@@ -197,11 +198,17 @@ def main():
         else:
             print(f"Failed to connect to {website} through the proxy.")
             log_to_excel(args.log_file, website, 0, 'DOWN')
-            subject = "Proxy Server Down Alert!"
-            body = f"The proxy server at {args.host}:{args.port} seems to be down.\n" \
-                   f"Failed to connect to {website} at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}.\n" \
-                   f"Please check the proxy server status."
-            send_email_alert(args, subject, body)
+            failed_websites.append(website)
+
+    if len(failed_websites) == len(args.websites):
+        print("All websites failed to connect through the proxy.")
+        subject = "Proxy Server Down Alert!"
+        failed_websites_str = "\n".join(failed_websites)
+        body = f"The proxy server at {args.host}:{args.port} seems to be down.\n" \
+               f"Failed to connect to all of the following websites at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}:\n" \
+               f"{failed_websites_str}\n" \
+               f"Please check the proxy server status."
+        send_email_alert(args, subject, body)
 
 if __name__ == "__main__":
     main()
