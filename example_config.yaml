@@ -15,12 +15,14 @@ monitoring:
   # (Required) The path to the Excel file where logs will be stored.
   log_file: /var/log/proxy_monitor.xlsx
 
+# (Optional) Settings for email notifications.
 email_alerts:
-  # (Optional) Settings for email notifications.
-  # Set use_local_mta to true if you have a configured MTA like sendmail or postfix on your Linux system.
-  # If true, the other smtp_* settings below will be ignored.
-  use_local_mta: false
   recipient_email: your_email@example.com
+
+  # Use the local MTA on your *nix system, by default SMTP on port 25 is used
+  use_local_mta: true
+  # (Optional) Use the specified sendmail executable for local submission
+  # sendmail_path: /usr/sbin/sendmail
 
   # These settings are only needed if use_local_mta is false.
   smtp_server: smtp.example.com

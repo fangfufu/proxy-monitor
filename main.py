@@ -8,6 +8,7 @@ import socket
 from email.mime.text import MIMEText
 from datetime import datetime
 import pandas as pd
+import subprocess
 
 def check_proxy_speed(url, proxy):
     """
@@ -93,13 +94,29 @@ def send_email_alert(args, subject, body):
     
     try:
         if args.use_local_mta:
-            # For local MTA, construct a generic 'From' address.
             user = os.environ.get('USER') or 'proxy-monitor'
             hostname = socket.gethostname()
             msg['From'] = f"{user}@{hostname}"
-            with smtplib.SMTP('localhost') as server:
-                server.send_message(msg)
-            print("Email alert sent successfully via local MTA.")
+
+            if args.sendmail_path and os.path.exists(args.sendmail_path):
+                try:
+                    p = subprocess.Popen([args.sendmail_path, "-t"], stdin=subprocess.PIPE, universal_newlines=True)
+                    p.communicate(msg.as_string())
+                    if p.returncode == 0:
+                        print(f"Email alert sent successfully via sendmail: {args.sendmail_path}")
+                    else:
+                        print(f"Sendmail exit code {p.returncode}. Check mail logs.")
+                except (OSError, subprocess.SubprocessError) as e:
+                    print(f"Error executing sendmail: {e}. Falling back to localhost SMTP.")
+                    # Fallback to localhost SMTP
+                    with smtplib.SMTP('localhost') as server:
+                        server.send_message(msg)
+                    print("Email alert sent successfully via local MTA (fallback). ")
+            else:
+                # Original behavior if sendmail_path is not provided
+                with smtplib.SMTP('localhost') as server:
+                    server.send_message(msg)
+                print("Email alert sent successfully via local MTA.")
         else:
             # Use external SMTP server with authentication
             if not all([args.smtp_server, args.smtp_port, args.smtp_user, args.smtp_password]):
@@ -153,6 +170,7 @@ def main():
     email_group = parser.add_argument_group('Email Alert Options')
     email_group.add_argument('--alert-email', dest='recipient_email', help="Email address to send alerts to.")
     email_group.add_argument('--use-local-mta', action='store_true', default=defaults.get('use_local_mta', False), help="Use the system's local MTA (e.g., sendmail) for alerts.")
+    email_group.add_argument('--sendmail-path', help="Path to the sendmail executable.")
     email_group.add_argument('--smtp-server', help="SMTP server for email alerts (if not using local MTA).")
     email_group.add_argument('--smtp-port', type=int, help="SMTP port for email alerts (if not using local MTA).")
     email_group.add_argument('--smtp-user', help="SMTP username for email alerts.")
